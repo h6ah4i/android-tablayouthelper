@@ -12,8 +12,7 @@ A small library which helps to use `TabLayout` with `ViewPager` more easily.
 Target platforms
 ---
 
-- API level 9 or later  (However, some animations are not supported on Gingerbread.)
-
+- API level 9 or later  
 
 Latest version
 ---
