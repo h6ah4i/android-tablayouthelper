@@ -8,6 +8,7 @@ A small library which helps to use `TabLayout` with `ViewPager` more easily.
 - Automatically switch `TabLayout.MODE_FIXED` and `TabLayout.MODE_SCROLLABLE` depends on total tab width.
 - Automatically update TabLayout content when the `PagerAdapter.notifyDataSetChanged()` method is called.
 
+<a href="./pic/demo.gif?raw=true"><img src="./pic/demo.gif?raw=true" alt="Example app" /></a>
 
 Target platforms
 ---
