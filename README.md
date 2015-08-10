@@ -3,6 +3,8 @@ TabLayoutHelper
 
 A small library which helps to use `TabLayout` with `ViewPager` more easily.
 
+[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-TabLayoutHelper-green.svg?style=flat)](https://android-arsenal.com/details/1/2273)
+
 ---
 
 - Automatically switch `TabLayout.MODE_FIXED` and `TabLayout.MODE_SCROLLABLE` depends on total tab width.
