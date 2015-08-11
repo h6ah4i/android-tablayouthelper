@@ -25,6 +25,7 @@ import android.support.v4.view.ViewPager;
 import android.view.View;
 import android.widget.LinearLayout;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -39,9 +40,11 @@ public class TabLayoutHelper {
 
     protected TabLayout.OnTabSelectedListener mInternalOnTabSelectedListener;
     protected DataSetObserver mInternalDataSetObserver;
-    protected TabLayout.TabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
+    protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
     protected Runnable mAdjustTabModeRunnable;
     protected boolean mAutoAdjustTabMode = false;
+    protected boolean mIsInTabSelectedContext = false;
+
 
     static {
         try {
@@ -92,7 +95,7 @@ public class TabLayoutHelper {
             }
         };
 
-        mInternalTabLayoutOnPageChangeListener = new TabLayout.TabLayoutOnPageChangeListener(mTabLayout);
+        mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(this, mTabLayout);
 
         viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
         mTabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
@@ -226,6 +229,7 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
+        mIsInTabSelectedContext = true;
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabSelected(tab);
         }
@@ -234,6 +238,7 @@ public class TabLayoutHelper {
         if (mViewPager.getCurrentItem() != position) {
             mViewPager.setCurrentItem(position, true);
         }
+        mIsInTabSelectedContext = false;
     }
 
     protected void handleOnTabUnselected(TabLayout.Tab tab) {
@@ -344,6 +349,26 @@ public class TabLayoutHelper {
             throw new IllegalStateException(e);
         } catch (InvocationTargetException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    public static class FixedTabLayoutOnPageChangeListener extends TabLayout.TabLayoutOnPageChangeListener {
+        private WeakReference<TabLayoutHelper> mTabLayoutHelperRef;
+
+        public FixedTabLayoutOnPageChangeListener(TabLayoutHelper helper, TabLayout tabLayout) {
+            super(tabLayout);
+            mTabLayoutHelperRef = new WeakReference<TabLayoutHelper>(helper);
+        }
+
+        @Override
+        public void onPageSelected(int position) {
+            TabLayoutHelper helper = mTabLayoutHelperRef.get();
+
+            // onTabReselected() callback is called when clicking not selected tab #3
+            // https://github.com/h6ah4i/android-tablayouthelper/issues/3
+            if (!(helper != null && helper.mIsInTabSelectedContext)) {
+                super.onPageSelected(position);
+            }
         }
     }
 }
