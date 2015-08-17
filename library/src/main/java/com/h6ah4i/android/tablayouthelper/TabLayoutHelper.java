@@ -42,6 +42,7 @@ public class TabLayoutHelper {
     protected DataSetObserver mInternalDataSetObserver;
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
     protected Runnable mAdjustTabModeRunnable;
+    protected Runnable mSetTabsFromPagerAdapterRunnable;
     protected boolean mAutoAdjustTabMode = false;
     protected boolean mIsInTabSelectedContext = false;
 
@@ -74,7 +75,7 @@ public class TabLayoutHelper {
         mInternalDataSetObserver = new DataSetObserver() {
             @Override
             public void onChanged() {
-                handleOnDataDetChanged();
+                handleOnDataSetChanged();
             }
         };
 
@@ -168,6 +169,7 @@ public class TabLayoutHelper {
      */
     public void release() {
         cancelPendingAdjustTabMode();
+        cancelPendingSetTabsFromPagerAdapter();
 
         if (mInternalDataSetObserver != null) {
             mViewPager.getAdapter().unregisterDataSetObserver(mInternalDataSetObserver);
@@ -219,13 +221,17 @@ public class TabLayoutHelper {
     //
     // internal methods
     //
-    protected void handleOnDataDetChanged() {
-        mTabLayout.post(new Runnable() {
-            @Override
-            public void run() {
-                setTabsFromPagerAdapter(mTabLayout, mViewPager.getAdapter(), mViewPager.getCurrentItem());
-            }
-        });
+    protected void handleOnDataSetChanged() {
+        if (mSetTabsFromPagerAdapterRunnable == null) {
+            mSetTabsFromPagerAdapterRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    setTabsFromPagerAdapter(mTabLayout, mViewPager.getAdapter(), mViewPager.getCurrentItem());
+                }
+            };
+        }
+
+        mTabLayout.post(mSetTabsFromPagerAdapterRunnable);
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
@@ -257,6 +263,13 @@ public class TabLayoutHelper {
         if (mAdjustTabModeRunnable != null) {
             mTabLayout.removeCallbacks(mAdjustTabModeRunnable);
             mAdjustTabModeRunnable = null;
+        }
+    }
+
+    protected void cancelPendingSetTabsFromPagerAdapter() {
+        if (mSetTabsFromPagerAdapterRunnable != null) {
+            mTabLayout.removeCallbacks(mSetTabsFromPagerAdapterRunnable);
+            mSetTabsFromPagerAdapterRunnable = null;
         }
     }
 
