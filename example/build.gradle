@@ -8,7 +8,7 @@ android {
     defaultConfig {
         applicationId "com.h6ah4i.android.example.tablayouthelper"
         minSdkVersion 9
-        targetSdkVersion 22
+        targetSdkVersion 23
         versionCode 1
         versionName "0.5"
     }
@@ -33,7 +33,7 @@ if (loadSigningConfigFromPropertiesFile(
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:22.2.1'
-    compile 'com.android.support:design:22.2.1'
+    compile 'com.android.support:appcompat-v7:23.0.0'
+    compile 'com.android.support:design:23.0.0'
     compile project(':library')
 }
