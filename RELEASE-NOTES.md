@@ -1,3 +1,7 @@
+## 0.6.0
+
+- Update support libraries version to 23.0.0
+
 ## 0.5.2
 
 - Fix NPE after calling the release() method
