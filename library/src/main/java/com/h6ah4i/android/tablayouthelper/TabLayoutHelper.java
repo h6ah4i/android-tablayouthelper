@@ -23,9 +23,11 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.ViewPager;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -45,6 +47,7 @@ public class TabLayoutHelper {
     protected Runnable mSetTabsFromPagerAdapterRunnable;
     protected boolean mAutoAdjustTabMode = false;
     protected boolean mIsInTabSelectedContext = false;
+    protected View.OnClickListener mInternalTabOnClickListener;
 
 
     static {
@@ -96,7 +99,16 @@ public class TabLayoutHelper {
             }
         };
 
-        mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(this, mTabLayout);
+        mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(mTabLayout);
+
+        mInternalTabOnClickListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                handleOnTabClick(v);
+            }
+        };
+
+        Internal.setTabOnClickListener(mTabLayout, mInternalTabOnClickListener);
 
         viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
         mTabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
@@ -259,6 +271,29 @@ public class TabLayoutHelper {
         }
     }
 
+    protected void handleOnTabClick(View v) {
+        ViewGroup tabStrip = (ViewGroup) v.getParent();
+        int tabCount = tabStrip.getChildCount();
+        int tabIndex = -1;
+
+        for (int i = 0; i < tabCount; i++) {
+            if (tabStrip.getChildAt(i) == v) {
+                tabIndex = i;
+                break;
+            }
+        }
+
+        if (tabIndex >= 0) {
+            // consume the pending selection here to avoid invoking the tab re-selected state
+            mInternalTabLayoutOnPageChangeListener.consumePendingSelection(mTabLayout);
+
+            TabLayout.Tab tab = mTabLayout.getTabAt(tabIndex);
+            Internal.selectTab(mTabLayout, tab);
+
+            mInternalTabLayoutOnPageChangeListener.clearPendingSelection();
+        }
+    }
+
     protected void cancelPendingAdjustTabMode() {
         if (mAdjustTabModeRunnable != null) {
             mTabLayout.removeCallbacks(mAdjustTabModeRunnable);
@@ -344,6 +379,7 @@ public class TabLayoutHelper {
         LinearLayout slidingTabStrip = (LinearLayout) tabLayout.getChildAt(0);
 
         tabLayout.setTabMode(TabLayout.MODE_SCROLLABLE);
+        tabLayout.setTabGravity(TabLayout.GRAVITY_CENTER);
 
         slidingTabStrip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
 
@@ -351,6 +387,7 @@ public class TabLayoutHelper {
         int tabLayoutWidth = tabLayout.getMeasuredWidth();
 
         if (stripWidth < tabLayoutWidth) {
+            tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);
             tabLayout.setTabMode(TabLayout.MODE_FIXED);
         }
     }
@@ -365,22 +402,106 @@ public class TabLayoutHelper {
         }
     }
 
-    public static class FixedTabLayoutOnPageChangeListener extends TabLayout.TabLayoutOnPageChangeListener {
-        private WeakReference<TabLayoutHelper> mTabLayoutHelperRef;
+    protected static class FixedTabLayoutOnPageChangeListener implements ViewPager.OnPageChangeListener {
+        private final WeakReference<TabLayout> mTabLayoutRef;
+        private int mPendingSelection = -1;
+        private int mScrollState;
 
-        public FixedTabLayoutOnPageChangeListener(TabLayoutHelper helper, TabLayout tabLayout) {
-            super(tabLayout);
-            mTabLayoutHelperRef = new WeakReference<TabLayoutHelper>(helper);
+        public FixedTabLayoutOnPageChangeListener(TabLayout tabLayout) {
+            mTabLayoutRef = new WeakReference<>(tabLayout);
         }
 
-        @Override
-        public void onPageSelected(int position) {
-            TabLayoutHelper helper = mTabLayoutHelperRef.get();
+        public void onPageScrollStateChanged(int state) {
+            TabLayout tabLayout = (TabLayout) mTabLayoutRef.get();
 
-            // onTabReselected() callback is called when clicking not selected tab #3
-            // https://github.com/h6ah4i/android-tablayouthelper/issues/3
-            if (!(helper != null && helper.mIsInTabSelectedContext)) {
-                super.onPageSelected(position);
+            mScrollState = state;
+            if (mScrollState == 0) {
+                consumePendingSelection(tabLayout);
+            }
+        }
+
+        public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+            TabLayout tabLayout = (TabLayout) mTabLayoutRef.get();
+            if (tabLayout != null) {
+                if (mPendingSelection == -1 || Internal.getScrollPosition(tabLayout) != (float) mPendingSelection) {
+                    tabLayout.setScrollPosition(position, positionOffset, true);
+                }
+            }
+        }
+
+        public void onPageSelected(int position) {
+            mPendingSelection = position;
+        }
+
+        public void clearPendingSelection() {
+            mPendingSelection = -1;
+        }
+
+        public void consumePendingSelection(TabLayout tabLayout) {
+            if (mPendingSelection == -1) {
+                return;
+            }
+
+            if (tabLayout.getSelectedTabPosition() != mPendingSelection) {
+                Internal.selectTab(tabLayout, tabLayout.getTabAt(mPendingSelection));
+            }
+            mPendingSelection = -1;
+        }
+    }
+
+    static class Internal {
+        private static final Method mGetScrollPosition;
+        private static final Field mTabClickListener;
+
+        static {
+            mGetScrollPosition = getAccessiblePrivateMethod("getScrollPosition");
+            mTabClickListener = getAccessiblePrivateField("mTabClickListener");
+        }
+
+        private static Method getAccessiblePrivateMethod(String methodName) throws RuntimeException {
+            try {
+                Method m = TabLayout.class.getDeclaredMethod(methodName);
+                m.setAccessible(true);
+                return m;
+            } catch (NoSuchMethodException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private static Field getAccessiblePrivateField(String fieldName) throws RuntimeException {
+            try {
+                Field f = TabLayout.class.getDeclaredField(fieldName);
+                f.setAccessible(true);
+                return f;
+            } catch (NoSuchFieldException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        public static void selectTab(TabLayout tabLayout, TabLayout.Tab tab) {
+            tab.select();
+        }
+
+        public static void setTabOnClickListener(TabLayout tabLayout, View.OnClickListener listener) {
+            try {
+                mTabClickListener.set(tabLayout, listener);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        public static float getScrollPosition(TabLayout tabLayout) {
+            try {
+                return (Float) mGetScrollPosition.invoke(tabLayout);
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException(e);
+            } catch (InvocationTargetException e) {
+                Throwable targetException = e.getTargetException();
+                if (targetException instanceof RuntimeException) {
+                    throw (RuntimeException) targetException;
+                } else {
+                    throw new IllegalStateException(targetException);
+                }
             }
         }
     }
