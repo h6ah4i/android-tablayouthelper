@@ -1,14 +1,20 @@
+## 0.6.1
+
+- Fixed issue #5 (Need to add consumer Proguard settings)
+- Fixed NPE issue
+- Updated support libraries version to 23.0.1
+
 ## 0.6.0
 
-- Update support libraries version to 23.0.0
+- Updated support libraries version to 23.0.0
 
 ## 0.5.2
 
-- Fix NPE after calling the release() method
+- Fixed NPE after calling the release() method
 
 ## 0.5.1
 
-- Fix issue #3 (onTabReselected() callback is called when clicking not selected tab)
+- Fixed issue #3 (onTabReselected() callback is called when clicking not selected tab)
 
 ## 0.5.0
 
