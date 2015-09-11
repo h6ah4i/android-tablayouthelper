@@ -287,8 +287,10 @@ public class TabLayoutHelper {
             // consume the pending selection here to avoid invoking the tab re-selected state
             mInternalTabLayoutOnPageChangeListener.consumePendingSelection(mTabLayout);
 
-            TabLayout.Tab tab = mTabLayout.getTabAt(tabIndex);
-            Internal.selectTab(mTabLayout, tab);
+            TabLayout.Tab tab = Internal.safeGetTabAt(mTabLayout, tabIndex);
+            if (tab != null) {
+                Internal.selectTab(mTabLayout, tab);
+            }
 
             mInternalTabLayoutOnPageChangeListener.clearPendingSelection();
         }
@@ -502,6 +504,16 @@ public class TabLayoutHelper {
                 } else {
                     throw new IllegalStateException(targetException);
                 }
+            }
+        }
+
+        public static TabLayout.Tab safeGetTabAt(TabLayout tabLayout, int index) {
+            int tabCount = tabLayout.getTabCount();
+
+            if (index >= 0 && index < tabCount) {
+                return tabLayout.getTabAt(index);
+            } else {
+                return null;
             }
         }
     }
