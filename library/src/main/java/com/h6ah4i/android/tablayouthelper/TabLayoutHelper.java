@@ -45,6 +45,7 @@ public class TabLayoutHelper {
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
     protected Runnable mAdjustTabModeRunnable;
     protected Runnable mSetTabsFromPagerAdapterRunnable;
+    protected Runnable mUpdateScrollPositionRunnable;
     protected boolean mAutoAdjustTabMode = false;
     protected boolean mIsInTabSelectedContext = false;
     protected View.OnClickListener mInternalTabOnClickListener;
@@ -151,7 +152,7 @@ public class TabLayoutHelper {
         mAutoAdjustTabMode = enabled;
 
         if (mAutoAdjustTabMode) {
-            adjustTabMode();
+            adjustTabMode(-1);
         } else {
             cancelPendingAdjustTabMode();
         }
@@ -182,6 +183,7 @@ public class TabLayoutHelper {
     public void release() {
         cancelPendingAdjustTabMode();
         cancelPendingSetTabsFromPagerAdapter();
+        cancelPendingUpdateScrollPosition();
 
         if (mInternalDataSetObserver != null) {
             mViewPager.getAdapter().unregisterDataSetObserver(mInternalDataSetObserver);
@@ -234,6 +236,8 @@ public class TabLayoutHelper {
     // internal methods
     //
     protected void handleOnDataSetChanged() {
+        cancelPendingUpdateScrollPosition();
+
         if (mSetTabsFromPagerAdapterRunnable == null) {
             mSetTabsFromPagerAdapterRunnable = new Runnable() {
                 @Override
@@ -247,6 +251,8 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
+        cancelPendingUpdateScrollPosition();
+
         mIsInTabSelectedContext = true;
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabSelected(tab);
@@ -310,19 +316,31 @@ public class TabLayoutHelper {
         }
     }
 
-    protected void adjustTabMode() {
+    protected void cancelPendingUpdateScrollPosition() {
+        if (mUpdateScrollPositionRunnable != null) {
+            mTabLayout.removeCallbacks(mUpdateScrollPositionRunnable);
+            mUpdateScrollPositionRunnable = null;
+        }
+    }
+
+    protected void adjustTabMode(int prevScrollX) {
         if (mAdjustTabModeRunnable != null) {
             return;
         }
 
+        if (prevScrollX < 0) {
+            prevScrollX = mTabLayout.getScrollX();
+        }
+
         if (ViewCompat.isLaidOut(mTabLayout)) {
-            adjustTabModeInternal(mTabLayout);
+            adjustTabModeInternal(mTabLayout, prevScrollX);
         } else {
+            final int prevScrollX1 = prevScrollX;
             mAdjustTabModeRunnable = new Runnable() {
                 @Override
                 public void run() {
                     mAdjustTabModeRunnable = null;
-                    adjustTabModeInternal(mTabLayout);
+                    adjustTabModeInternal(mTabLayout, prevScrollX1);
                 }
             };
             mTabLayout.post(mAdjustTabModeRunnable);
@@ -334,9 +352,8 @@ public class TabLayoutHelper {
     }
 
     protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, PagerAdapter adapter, int currentItem) {
-        int prevScrollX = tabLayout.getScrollX();
-        int prevTabMode = tabLayout.getTabMode();
         int prevSelectedTab = tabLayout.getSelectedTabPosition();
+        int prevScrollX = tabLayout.getScrollX();
 
         // remove all tabs
         tabLayout.removeAllTabs();
@@ -363,13 +380,13 @@ public class TabLayoutHelper {
 
         // adjust tab mode & gravity
         if (mAutoAdjustTabMode) {
-            adjustTabMode();
-        }
-
-        // restore scroll position if needed
-        int curTabMode = tabLayout.getTabMode();
-        if (prevTabMode == TabLayout.MODE_SCROLLABLE && curTabMode == TabLayout.MODE_SCROLLABLE) {
-            tabLayout.scrollTo(prevScrollX, 0);
+            adjustTabMode(prevScrollX);
+        } else {
+            // restore scroll position if needed
+            int curTabMode = tabLayout.getTabMode();
+            if (curTabMode == TabLayout.MODE_SCROLLABLE) {
+                tabLayout.scrollTo(prevScrollX, 0);
+            }
         }
     }
 
@@ -377,8 +394,9 @@ public class TabLayoutHelper {
         onUpdateTab(tab);
     }
 
-    protected void adjustTabModeInternal(@NonNull TabLayout tabLayout) {
+    protected void adjustTabModeInternal(@NonNull TabLayout tabLayout, int prevScrollX) {
         LinearLayout slidingTabStrip = (LinearLayout) tabLayout.getChildAt(0);
+        int prevTabMode = tabLayout.getTabMode();
 
         tabLayout.setTabMode(TabLayout.MODE_SCROLLABLE);
         tabLayout.setTabGravity(TabLayout.GRAVITY_CENTER);
@@ -388,10 +406,31 @@ public class TabLayoutHelper {
         int stripWidth = slidingTabStrip.getMeasuredWidth();
         int tabLayoutWidth = tabLayout.getMeasuredWidth();
 
+        cancelPendingUpdateScrollPosition();
+
         if (stripWidth < tabLayoutWidth) {
             tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);
             tabLayout.setTabMode(TabLayout.MODE_FIXED);
+        } else {
+            if (prevTabMode == TabLayout.MODE_SCROLLABLE) {
+                // restore scroll position
+                tabLayout.scrollTo(prevScrollX, 0);
+            } else {
+                // scroll to current selected tab
+                mUpdateScrollPositionRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        mUpdateScrollPositionRunnable = null;
+                        updateScrollPosition();
+                    }
+                };
+                mTabLayout.post(mUpdateScrollPositionRunnable);
+            }
         }
+    }
+
+    private void updateScrollPosition() {
+        mTabLayout.setScrollPosition(mTabLayout.getSelectedTabPosition(), 0, false);
     }
 
     protected static View getCustomView(TabLayout.Tab tab) {
