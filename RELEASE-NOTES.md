@@ -1,3 +1,6 @@
+## 0.6.2
+- Make automatically scroll to current tab when tab mode is changed
+
 ## 0.6.1
 
 - Fixed issue #5 (Need to add consumer Proguard settings)
