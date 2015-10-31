@@ -394,17 +394,34 @@ public class TabLayoutHelper {
         onUpdateTab(tab);
     }
 
-    protected void adjustTabModeInternal(@NonNull TabLayout tabLayout, int prevScrollX) {
+    protected int measureSlidingTabStripWidth(@NonNull TabLayout tabLayout) {
         LinearLayout slidingTabStrip = (LinearLayout) tabLayout.getChildAt(0);
+
+        // NOTE: slidingTabStrip.getMeasuredWidth() method does not return correct width!
+        // Need to measure each tabs and calculate the sum of them.
+
+        int tabLayoutHeight = tabLayout.getMeasuredHeight();
+        int childCount = slidingTabStrip.getChildCount();
+        int stripWidth = 0;
+        int tabHeightMeasureSpec = View.MeasureSpec.makeMeasureSpec(tabLayoutHeight, View.MeasureSpec.EXACTLY);
+
+        for (int i = 0; i < childCount; i++) {
+            View tabView = slidingTabStrip.getChildAt(0);
+            tabView.measure(View.MeasureSpec.UNSPECIFIED, tabHeightMeasureSpec);
+            stripWidth += tabView.getMeasuredWidth();
+        }
+
+        return stripWidth;
+    }
+
+    protected void adjustTabModeInternal(@NonNull TabLayout tabLayout, int prevScrollX) {
         int prevTabMode = tabLayout.getTabMode();
 
         tabLayout.setTabMode(TabLayout.MODE_SCROLLABLE);
         tabLayout.setTabGravity(TabLayout.GRAVITY_CENTER);
 
-        slidingTabStrip.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-
-        int stripWidth = slidingTabStrip.getMeasuredWidth();
         int tabLayoutWidth = tabLayout.getMeasuredWidth();
+        int stripWidth = measureSlidingTabStripWidth(tabLayout);
 
         cancelPendingUpdateScrollPosition();
 
@@ -453,7 +470,7 @@ public class TabLayoutHelper {
         }
 
         public void onPageScrollStateChanged(int state) {
-            TabLayout tabLayout = (TabLayout) mTabLayoutRef.get();
+            TabLayout tabLayout = mTabLayoutRef.get();
 
             mScrollState = state;
             if (mScrollState == 0) {
@@ -462,7 +479,7 @@ public class TabLayoutHelper {
         }
 
         public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-            TabLayout tabLayout = (TabLayout) mTabLayoutRef.get();
+            TabLayout tabLayout = mTabLayoutRef.get();
             if (tabLayout != null) {
                 if (mPendingSelection == -1 || Internal.getScrollPosition(tabLayout) != (float) mPendingSelection) {
                     tabLayout.setScrollPosition(position, positionOffset, true);
