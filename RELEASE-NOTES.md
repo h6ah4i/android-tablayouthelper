@@ -1,3 +1,7 @@
+## 0.6.3
+- Improved tab width measuring method
+- Updated support libraries version to 23.1.0
+
 ## 0.6.2
 - Make automatically scroll to current tab when tab mode is changed
 
