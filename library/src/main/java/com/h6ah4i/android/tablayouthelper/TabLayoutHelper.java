@@ -33,8 +33,6 @@ import java.lang.reflect.Method;
 
 
 public class TabLayoutHelper {
-    private static final Method mMethodTabGetCustomView;
-
     protected TabLayout mTabLayout;
     protected ViewPager mViewPager;
 
@@ -49,16 +47,6 @@ public class TabLayoutHelper {
     protected boolean mAutoAdjustTabMode = false;
     protected boolean mIsInTabSelectedContext = false;
     protected View.OnClickListener mInternalTabOnClickListener;
-
-
-    static {
-        try {
-            mMethodTabGetCustomView = TabLayout.Tab.class.getDeclaredMethod("getCustomView");
-            mMethodTabGetCustomView.setAccessible(true);
-        } catch (NoSuchMethodException e) {
-            throw new IllegalStateException(e);
-        }
-    }
 
     /**
      * Constructor.
@@ -448,16 +436,6 @@ public class TabLayoutHelper {
 
     private void updateScrollPosition() {
         mTabLayout.setScrollPosition(mTabLayout.getSelectedTabPosition(), 0, false);
-    }
-
-    protected static View getCustomView(TabLayout.Tab tab) {
-        try {
-            return (View) mMethodTabGetCustomView.invoke(tab);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException(e);
-        } catch (InvocationTargetException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     protected static class FixedTabLayoutOnPageChangeListener implements ViewPager.OnPageChangeListener {
