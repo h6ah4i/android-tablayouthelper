@@ -32,6 +32,8 @@ import com.h6ah4i.android.tablayouthelper.TabLayoutHelper;
 public class TabLayoutDemoFragment extends Fragment {
     private static final String ARG_USE_CUSTOM_TAB = "use custom tab";
 
+    private static String KEY_SAVED_STATE_NUM_PAGES = "num_pages";
+
     public static TabLayoutDemoFragment newInstance(boolean useCustomTab) {
         TabLayoutDemoFragment fragment = new TabLayoutDemoFragment();
         Bundle bundle = new Bundle();
@@ -54,6 +56,14 @@ public class TabLayoutDemoFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         mUseCustomTab = getArguments().getBoolean(ARG_USE_CUSTOM_TAB);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        // save current num pages
+        outState.putInt(KEY_SAVED_STATE_NUM_PAGES, mAdapter.getCount());
     }
 
     @Nullable
@@ -88,6 +98,15 @@ public class TabLayoutDemoFragment extends Fragment {
 
 
         mAdapter = new TabLayoutDemoPagerAdapter(getChildFragmentManager());
+
+        // restore pages
+        if (savedInstanceState != null) {
+            int numPages = savedInstanceState.getInt(KEY_SAVED_STATE_NUM_PAGES);
+            for (int i = mAdapter.getCount(); i < numPages; i++) {
+                mAdapter.addPage();
+            }
+        }
+
         mViewPager.setAdapter(mAdapter);
 
         // initialize the TabLayoutHelper instance
