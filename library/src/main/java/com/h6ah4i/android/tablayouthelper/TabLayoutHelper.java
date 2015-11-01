@@ -22,6 +22,7 @@ import android.support.design.widget.TabLayout;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.ViewPager;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 
@@ -350,24 +351,35 @@ public class TabLayoutHelper {
         onUpdateTab(tab);
     }
 
-    protected int measureSlidingTabStripWidth(@NonNull TabLayout tabLayout) {
+    protected int determineTabMode(@NonNull TabLayout tabLayout) {
         LinearLayout slidingTabStrip = (LinearLayout) tabLayout.getChildAt(0);
+
+        int childCount = slidingTabStrip.getChildCount();
 
         // NOTE: slidingTabStrip.getMeasuredWidth() method does not return correct width!
         // Need to measure each tabs and calculate the sum of them.
 
-        int tabLayoutHeight = tabLayout.getMeasuredHeight();
-        int childCount = slidingTabStrip.getChildCount();
+        int tabLayoutWidth = tabLayout.getMeasuredWidth() - tabLayout.getPaddingLeft() - tabLayout.getPaddingRight();
+        int tabLayoutHeight = tabLayout.getMeasuredHeight() - tabLayout.getPaddingTop() - tabLayout.getPaddingBottom();
+
+        if (childCount == 0) {
+            return TabLayout.MODE_FIXED;
+        }
+
         int stripWidth = 0;
+        int maxWidthTab = 0;
         int tabHeightMeasureSpec = View.MeasureSpec.makeMeasureSpec(tabLayoutHeight, View.MeasureSpec.EXACTLY);
 
         for (int i = 0; i < childCount; i++) {
             View tabView = slidingTabStrip.getChildAt(i);
             tabView.measure(View.MeasureSpec.UNSPECIFIED, tabHeightMeasureSpec);
-            stripWidth += tabView.getMeasuredWidth();
+            int tabWidth = tabView.getMeasuredWidth();
+            stripWidth += tabWidth;
+            maxWidthTab = Math.max(maxWidthTab, tabWidth);
         }
 
-        return stripWidth;
+        return ((stripWidth < tabLayoutWidth) && (maxWidthTab < (tabLayoutWidth / childCount)))
+                ? TabLayout.MODE_FIXED : TabLayout.MODE_SCROLLABLE;
     }
 
     protected void adjustTabModeInternal(@NonNull TabLayout tabLayout, int prevScrollX) {
@@ -376,15 +388,16 @@ public class TabLayoutHelper {
         tabLayout.setTabMode(TabLayout.MODE_SCROLLABLE);
         tabLayout.setTabGravity(TabLayout.GRAVITY_CENTER);
 
-        int tabLayoutWidth = tabLayout.getMeasuredWidth();
-        int stripWidth = measureSlidingTabStripWidth(tabLayout);
+        int newTabMode = determineTabMode(tabLayout);
 
         cancelPendingUpdateScrollPosition();
 
-        if (stripWidth < tabLayoutWidth) {
+        if (newTabMode == TabLayout.MODE_FIXED) {
             tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);
             tabLayout.setTabMode(TabLayout.MODE_FIXED);
         } else {
+            LinearLayout slidingTabStrip = (LinearLayout) tabLayout.getChildAt(0);
+            slidingTabStrip.setGravity(Gravity.CENTER_HORIZONTAL);
             if (prevTabMode == TabLayout.MODE_SCROLLABLE) {
                 // restore scroll position
                 tabLayout.scrollTo(prevScrollX, 0);
