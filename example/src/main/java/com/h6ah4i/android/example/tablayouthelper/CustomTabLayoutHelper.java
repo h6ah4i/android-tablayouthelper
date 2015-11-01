@@ -68,7 +68,7 @@ public class CustomTabLayoutHelper extends TabLayoutHelper {
         // NOTE: should not call super method here!
 
         int position = tab.getPosition();
-        View v = getCustomView(tab);
+        View v = tab.getCustomView();
         TextView tv = (TextView) v.findViewById(R.id.text);
 
         tv.setTextColor(Color.WHITE);
