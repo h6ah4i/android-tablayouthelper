@@ -406,7 +406,7 @@ public class TabLayoutHelper {
         int tabHeightMeasureSpec = View.MeasureSpec.makeMeasureSpec(tabLayoutHeight, View.MeasureSpec.EXACTLY);
 
         for (int i = 0; i < childCount; i++) {
-            View tabView = slidingTabStrip.getChildAt(0);
+            View tabView = slidingTabStrip.getChildAt(i);
             tabView.measure(View.MeasureSpec.UNSPECIFIED, tabHeightMeasureSpec);
             stripWidth += tabView.getMeasuredWidth();
         }
