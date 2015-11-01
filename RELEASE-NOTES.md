@@ -1,3 +1,7 @@
+## 0.7.0
+- Improved tab mode determination algorithm
+- Remove TabLayoutHelper.getCustomView() method
+
 ## 0.6.3
 - Improved tab width measuring method
 - Updated support libraries version to 23.1.0
