@@ -23,11 +23,9 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.ViewPager;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -39,14 +37,12 @@ public class TabLayoutHelper {
     protected TabLayout.OnTabSelectedListener mUserOnTabSelectedListener;
 
     protected TabLayout.OnTabSelectedListener mInternalOnTabSelectedListener;
-    protected DataSetObserver mInternalDataSetObserver;
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
+    protected DataSetObserver mInternalDataSetObserver;
     protected Runnable mAdjustTabModeRunnable;
     protected Runnable mSetTabsFromPagerAdapterRunnable;
     protected Runnable mUpdateScrollPositionRunnable;
     protected boolean mAutoAdjustTabMode = false;
-    protected boolean mIsInTabSelectedContext = false;
-    protected View.OnClickListener mInternalTabOnClickListener;
 
     /**
      * Constructor.
@@ -90,20 +86,7 @@ public class TabLayoutHelper {
 
         mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(mTabLayout);
 
-        mInternalTabOnClickListener = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                handleOnTabClick(v);
-            }
-        };
-
-        Internal.setTabOnClickListener(mTabLayout, mInternalTabOnClickListener);
-
-        viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
-        mTabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
-        viewPager.addOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
-
-        setTabsFromPagerAdapter(tabLayout, adapter, viewPager.getCurrentItem());
+        setupWithViewPager(mTabLayout, mViewPager);
     }
 
     //
@@ -156,7 +139,7 @@ public class TabLayoutHelper {
     }
 
     /**
-     * Sets {@link android.support.design.widget.TabLayout.OnTabSelectedListener}
+     * Sets {@link TabLayout.OnTabSelectedListener}
      *
      * @param listener Listener
      */
@@ -225,6 +208,7 @@ public class TabLayoutHelper {
     //
     protected void handleOnDataSetChanged() {
         cancelPendingUpdateScrollPosition();
+        cancelPendingSetTabsFromPagerAdapter();
 
         if (mSetTabsFromPagerAdapterRunnable == null) {
             mSetTabsFromPagerAdapterRunnable = new Runnable() {
@@ -239,18 +223,12 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
+        mViewPager.setCurrentItem(tab.getPosition());
         cancelPendingUpdateScrollPosition();
 
-        mIsInTabSelectedContext = true;
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabSelected(tab);
         }
-
-        int position = tab.getPosition();
-        if (mViewPager.getCurrentItem() != position) {
-            mViewPager.setCurrentItem(position, true);
-        }
-        mIsInTabSelectedContext = false;
     }
 
     protected void handleOnTabUnselected(TabLayout.Tab tab) {
@@ -262,31 +240,6 @@ public class TabLayoutHelper {
     protected void handleOnTabReselected(TabLayout.Tab tab) {
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabReselected(tab);
-        }
-    }
-
-    protected void handleOnTabClick(View v) {
-        ViewGroup tabStrip = (ViewGroup) v.getParent();
-        int tabCount = tabStrip.getChildCount();
-        int tabIndex = -1;
-
-        for (int i = 0; i < tabCount; i++) {
-            if (tabStrip.getChildAt(i) == v) {
-                tabIndex = i;
-                break;
-            }
-        }
-
-        if (tabIndex >= 0) {
-            // consume the pending selection here to avoid invoking the tab re-selected state
-            mInternalTabLayoutOnPageChangeListener.consumePendingSelection(mTabLayout);
-
-            TabLayout.Tab tab = Internal.safeGetTabAt(mTabLayout, tabIndex);
-            if (tab != null) {
-                Internal.selectTab(mTabLayout, tab);
-            }
-
-            mInternalTabLayoutOnPageChangeListener.clearPendingSelection();
         }
     }
 
@@ -335,8 +288,23 @@ public class TabLayoutHelper {
         }
     }
 
-    private TabLayout.Tab createNewTab(TabLayout tabLayout, PagerAdapter adapter, int position) {
+    protected TabLayout.Tab createNewTab(TabLayout tabLayout, PagerAdapter adapter, int position) {
         return onCreateTab(tabLayout, adapter, position);
+    }
+
+    protected void setupWithViewPager(@NonNull TabLayout tabLayout, @NonNull ViewPager viewPager) {
+        final PagerAdapter adapter = viewPager.getAdapter();
+        if (adapter == null) {
+            throw new IllegalArgumentException("ViewPager does not have a PagerAdapter set");
+        }
+
+        setTabsFromPagerAdapter(tabLayout, adapter, viewPager.getCurrentItem());
+
+        viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
+
+        viewPager.addOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
+
+        tabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
     }
 
     protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, PagerAdapter adapter, int currentItem) {
@@ -440,63 +408,63 @@ public class TabLayoutHelper {
 
     protected static class FixedTabLayoutOnPageChangeListener implements ViewPager.OnPageChangeListener {
         private final WeakReference<TabLayout> mTabLayoutRef;
-        private int mPendingSelection = -1;
+        private int mPreviousScrollState;
         private int mScrollState;
 
         public FixedTabLayoutOnPageChangeListener(TabLayout tabLayout) {
             mTabLayoutRef = new WeakReference<>(tabLayout);
         }
 
+        @Override
         public void onPageScrollStateChanged(int state) {
-            TabLayout tabLayout = mTabLayoutRef.get();
-
+            mPreviousScrollState = mScrollState;
             mScrollState = state;
-            if (mScrollState == 0) {
-                consumePendingSelection(tabLayout);
-            }
         }
 
-        public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-            TabLayout tabLayout = mTabLayoutRef.get();
+        @Override
+        public void onPageScrolled(int position, float positionOffset,
+                                   int positionOffsetPixels) {
+            final TabLayout tabLayout = mTabLayoutRef.get();
             if (tabLayout != null) {
-                if (mPendingSelection == -1 || Internal.getScrollPosition(tabLayout) != (float) mPendingSelection) {
-                    tabLayout.setScrollPosition(position, positionOffset, true);
+                if (shouldUpdateScrollPosition()) {
+                    // Update the scroll position, only update the text selection if we're being
+                    // dragged (or we're settling after a drag)
+                    final boolean updateText = (mScrollState == ViewPager.SCROLL_STATE_DRAGGING)
+                            || (mScrollState == ViewPager.SCROLL_STATE_SETTLING
+                            && mPreviousScrollState == ViewPager.SCROLL_STATE_DRAGGING);
+                    tabLayout.setScrollPosition(position, positionOffset, updateText);
                 }
             }
         }
 
+        @Override
         public void onPageSelected(int position) {
-            mPendingSelection = position;
+            final TabLayout tabLayout = mTabLayoutRef.get();
+            if (tabLayout != null && tabLayout.getSelectedTabPosition() != position) {
+                // Select the tab, only updating the indicator if we're not being dragged/settled
+                // (since onPageScrolled will handle that).
+                Internal.selectTab(tabLayout, tabLayout.getTabAt(position),
+                        mScrollState == ViewPager.SCROLL_STATE_IDLE);
+            }
         }
 
-        public void clearPendingSelection() {
-            mPendingSelection = -1;
-        }
-
-        public void consumePendingSelection(TabLayout tabLayout) {
-            if (mPendingSelection == -1) {
-                return;
-            }
-
-            if (tabLayout.getSelectedTabPosition() != mPendingSelection) {
-                Internal.selectTab(tabLayout, tabLayout.getTabAt(mPendingSelection));
-            }
-            mPendingSelection = -1;
+        private boolean shouldUpdateScrollPosition() {
+            return (mScrollState == ViewPager.SCROLL_STATE_DRAGGING) ||
+                    ((mScrollState == ViewPager.SCROLL_STATE_SETTLING) && (mPreviousScrollState == ViewPager.SCROLL_STATE_DRAGGING));
         }
     }
 
+
     static class Internal {
-        private static final Method mGetScrollPosition;
-        private static final Field mTabClickListener;
+        private static final Method mMethodSelectTab;
 
         static {
-            mGetScrollPosition = getAccessiblePrivateMethod("getScrollPosition");
-            mTabClickListener = getAccessiblePrivateField("mTabClickListener");
+            mMethodSelectTab = getAccessiblePrivateMethod(TabLayout.class, "selectTab", TabLayout.Tab.class, boolean.class);
         }
 
-        private static Method getAccessiblePrivateMethod(String methodName) throws RuntimeException {
+        private static Method getAccessiblePrivateMethod(Class<?> targetClass, String methodName, Class<?>... params) throws RuntimeException {
             try {
-                Method m = TabLayout.class.getDeclaredMethod(methodName);
+                Method m = targetClass.getDeclaredMethod(methodName, params);
                 m.setAccessible(true);
                 return m;
             } catch (NoSuchMethodException e) {
@@ -504,50 +472,22 @@ public class TabLayoutHelper {
             }
         }
 
-        private static Field getAccessiblePrivateField(String fieldName) throws RuntimeException {
+        public static void selectTab(TabLayout tabLayout, TabLayout.Tab tab, boolean updateIndicator) {
             try {
-                Field f = TabLayout.class.getDeclaredField(fieldName);
-                f.setAccessible(true);
-                return f;
-            } catch (NoSuchFieldException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        public static void selectTab(TabLayout tabLayout, TabLayout.Tab tab) {
-            tab.select();
-        }
-
-        public static void setTabOnClickListener(TabLayout tabLayout, View.OnClickListener listener) {
-            try {
-                mTabClickListener.set(tabLayout, listener);
+                mMethodSelectTab.invoke(tabLayout, tab, updateIndicator);
             } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        public static float getScrollPosition(TabLayout tabLayout) {
-            try {
-                return (Float) mGetScrollPosition.invoke(tabLayout);
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
+                new IllegalStateException(e);
             } catch (InvocationTargetException e) {
-                Throwable targetException = e.getTargetException();
-                if (targetException instanceof RuntimeException) {
-                    throw (RuntimeException) targetException;
-                } else {
-                    throw new IllegalStateException(targetException);
-                }
+                throw handleInvocationTargetException(e);
             }
         }
 
-        public static TabLayout.Tab safeGetTabAt(TabLayout tabLayout, int index) {
-            int tabCount = tabLayout.getTabCount();
-
-            if (index >= 0 && index < tabCount) {
-                return tabLayout.getTabAt(index);
+        private static RuntimeException handleInvocationTargetException(InvocationTargetException e) {
+            Throwable targetException = e.getTargetException();
+            if (targetException instanceof RuntimeException) {
+                throw (RuntimeException) targetException;
             } else {
-                return null;
+                throw new IllegalStateException(targetException);
             }
         }
     }
