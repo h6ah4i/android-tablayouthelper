@@ -18,6 +18,7 @@ package com.h6ah4i.android.tablayouthelper;
 
 import android.database.DataSetObserver;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
@@ -39,11 +40,13 @@ public class TabLayoutHelper {
 
     protected TabLayout.OnTabSelectedListener mInternalOnTabSelectedListener;
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
+    protected ViewPager.OnAdapterChangeListener mInternalOnAdapterChangeListener;
     protected DataSetObserver mInternalDataSetObserver;
     protected Runnable mAdjustTabModeRunnable;
     protected Runnable mSetTabsFromPagerAdapterRunnable;
     protected Runnable mUpdateScrollPositionRunnable;
     protected boolean mAutoAdjustTabMode = false;
+    protected boolean mDuringSetTabsFromPagerAdapter;
 
     /**
      * Constructor.
@@ -86,6 +89,13 @@ public class TabLayoutHelper {
         };
 
         mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(mTabLayout);
+
+        mInternalOnAdapterChangeListener = new ViewPager.OnAdapterChangeListener() {
+            @Override
+            public void onAdapterChanged(@NonNull ViewPager viewPager, @Nullable PagerAdapter oldAdapter, @Nullable PagerAdapter newAdapter) {
+                handleOnAdapterChanged(viewPager, oldAdapter, newAdapter);
+            }
+        };
 
         setupWithViewPager(mTabLayout, mViewPager);
     }
@@ -143,7 +153,9 @@ public class TabLayoutHelper {
      * Sets {@link TabLayout.OnTabSelectedListener}
      *
      * @param listener Listener
+     * @deprecated Use {@link TabLayout#addOnTabSelectedListener(TabLayout.OnTabSelectedListener)} instead.
      */
+    @Deprecated
     public void setOnTabSelectedListener(TabLayout.OnTabSelectedListener listener) {
         mUserOnTabSelectedListener = listener;
     }
@@ -157,12 +169,16 @@ public class TabLayoutHelper {
         cancelPendingSetTabsFromPagerAdapter();
         cancelPendingUpdateScrollPosition();
 
+        if (mInternalOnAdapterChangeListener != null) {
+            mViewPager.removeOnAdapterChangeListener(mInternalOnAdapterChangeListener);
+            mInternalOnAdapterChangeListener = null;
+        }
         if (mInternalDataSetObserver != null) {
             mViewPager.getAdapter().unregisterDataSetObserver(mInternalDataSetObserver);
             mInternalDataSetObserver = null;
         }
         if (mInternalOnTabSelectedListener != null) {
-            mTabLayout.setOnTabSelectedListener(null);
+            mTabLayout.removeOnTabSelectedListener(mInternalOnTabSelectedListener);
             mInternalOnTabSelectedListener = null;
         }
         if (mInternalTabLayoutOnPageChangeListener != null) {
@@ -201,7 +217,9 @@ public class TabLayoutHelper {
      * @param tab Tab
      */
     protected void onUpdateTab(TabLayout.Tab tab) {
-        tab.setCustomView(null); // invokes update() method internally.
+        if (tab.getCustomView() == null) {
+            tab.setCustomView(null); // invokes update() method internally.
+        }
     }
 
     //
@@ -224,6 +242,9 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         mViewPager.setCurrentItem(tab.getPosition());
         cancelPendingUpdateScrollPosition();
 
@@ -233,15 +254,36 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabUnselected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabUnselected(tab);
         }
     }
 
     protected void handleOnTabReselected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabReselected(tab);
         }
+    }
+
+    protected void handleOnAdapterChanged(ViewPager viewPager, PagerAdapter oldAdapter, PagerAdapter newAdapter) {
+        if (mViewPager != viewPager) {
+            return;
+        }
+
+        if (oldAdapter != null) {
+            oldAdapter.unregisterDataSetObserver(mInternalDataSetObserver);
+        }
+        if (newAdapter != null) {
+            newAdapter.registerDataSetObserver(mInternalDataSetObserver);
+        }
+
+        setTabsFromPagerAdapter(mTabLayout, newAdapter, mViewPager.getCurrentItem());
     }
 
     protected void cancelPendingAdjustTabMode() {
@@ -304,46 +346,49 @@ public class TabLayoutHelper {
         viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
 
         viewPager.addOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
+        viewPager.addOnAdapterChangeListener(mInternalOnAdapterChangeListener);
 
-        tabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
+        tabLayout.addOnTabSelectedListener(mInternalOnTabSelectedListener);
     }
 
-    protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, PagerAdapter adapter, int currentItem) {
-        int prevSelectedTab = tabLayout.getSelectedTabPosition();
-        int prevScrollX = tabLayout.getScrollX();
+    protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, @Nullable PagerAdapter adapter, int currentItem) {
+        try {
+            mDuringSetTabsFromPagerAdapter = true;
 
-        // remove all tabs
-        tabLayout.removeAllTabs();
+            int prevSelectedTab = tabLayout.getSelectedTabPosition();
+            int prevScrollX = tabLayout.getScrollX();
 
-        // add tabs
-        int count = adapter.getCount();
-        for (int i = 0; i < count; i++) {
-            TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
-            tabLayout.addTab(tab, false);
-            updateTab(tab);
-        }
+            // remove all tabs
+            tabLayout.removeAllTabs();
 
-        // select current tab
-        currentItem = Math.min(currentItem, count - 1);
-        if (currentItem >= 0) {
-            if (prevSelectedTab == currentItem) {
-                tabLayout.setOnTabSelectedListener(null);
+            // add tabs
+            if (adapter != null) {
+                int count = adapter.getCount();
+                for (int i = 0; i < count; i++) {
+                    TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
+                    tabLayout.addTab(tab, false);
+                    updateTab(tab);
+                }
+
+                // select current tab
+                currentItem = Math.min(currentItem, count - 1);
+                if (currentItem >= 0) {
+                    tabLayout.getTabAt(currentItem).select();
+                }
             }
-            tabLayout.getTabAt(currentItem).select();
-            if (prevSelectedTab == currentItem) {
-                tabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
-            }
-        }
 
-        // adjust tab mode & gravity
-        if (mAutoAdjustTabMode) {
-            adjustTabMode(prevScrollX);
-        } else {
-            // restore scroll position if needed
-            int curTabMode = tabLayout.getTabMode();
-            if (curTabMode == TabLayout.MODE_SCROLLABLE) {
-                tabLayout.scrollTo(prevScrollX, 0);
+            // adjust tab mode & gravity
+            if (mAutoAdjustTabMode) {
+                adjustTabMode(prevScrollX);
+            } else {
+                // restore scroll position if needed
+                int curTabMode = tabLayout.getTabMode();
+                if (curTabMode == TabLayout.MODE_SCROLLABLE) {
+                    tabLayout.scrollTo(prevScrollX, 0);
+                }
             }
+        } finally {
+            mDuringSetTabsFromPagerAdapter = false;
         }
     }
 
