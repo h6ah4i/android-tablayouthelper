@@ -153,7 +153,9 @@ public class TabLayoutHelper {
      * Sets {@link TabLayout.OnTabSelectedListener}
      *
      * @param listener Listener
+     * @deprecated Use {@link TabLayout#addOnTabSelectedListener(TabLayout.OnTabSelectedListener)} instead.
      */
+    @Deprecated
     public void setOnTabSelectedListener(TabLayout.OnTabSelectedListener listener) {
         mUserOnTabSelectedListener = listener;
     }

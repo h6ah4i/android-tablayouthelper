@@ -119,8 +119,8 @@ public class TabLayoutDemoFragment extends Fragment {
         // [Optional] enables auto tab mode adjustment
         mTabLayoutHelper.setAutoAdjustTabModeEnabled(true);
 
-        // [Optional] set OnTabSelectedListener
-        mTabLayoutHelper.setOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+        // set OnTabSelectedListener
+        mTabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             private void showMessage(String message) {
                 Snackbar.make(getView(), message, Snackbar.LENGTH_SHORT).show();
             }

@@ -8,9 +8,7 @@ A small library which helps to use `TabLayout` with `ViewPager` more easily.
 ---
 
 - Automatically switch `TabLayout.MODE_FIXED` and `TabLayout.MODE_SCROLLABLE` depends on total tab width.
-- Automatically update TabLayout content when the `PagerAdapter.notifyDataSetChanged()` method is called.
-- Impelemnts some bug fixes existing in the `TabLayout` class...
-  - [Issue 175073: TabLayout Underline Animation](https://code.google.com/p/android/issues/detail?id=175073)
+- Easily to implement custom tab views
 
 <a href="./pic/demo.gif?raw=true"><img src="./pic/demo.gif?raw=true" alt="Example app" /></a>
 
@@ -50,9 +48,6 @@ mTabLayoutHelper = new TabLayoutHelper(tabLayout, viewPager);
 
 // [Optional] enables auto tab mode adjustment
 mTabLayoutHelper.setAutoAdjustTabModeEnabled(true);
-
-// [Optional] set OnTabSelectedListener
-mTabLayoutHelper.setOnTabSelectedListener(new TabLayout.OnTabSelectedListener() { ... });
 ```
 
 License
