@@ -1,3 +1,8 @@
+## 0.8.0
+- Updated support libraries version to 25.1.0
+- Mark setOnTabSelectedListener() method as deprecated
+- Support refreshing tabs when adapter changed
+
 ## 0.7.0
 - Improved tab mode determination algorithm
 - Remove TabLayoutHelper.getCustomView() method
