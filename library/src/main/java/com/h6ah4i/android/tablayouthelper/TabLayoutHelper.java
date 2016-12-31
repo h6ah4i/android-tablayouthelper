@@ -217,7 +217,9 @@ public class TabLayoutHelper {
      * @param tab Tab
      */
     protected void onUpdateTab(TabLayout.Tab tab) {
-        tab.setCustomView(null); // invokes update() method internally.
+        if (tab.getCustomView() == null) {
+            tab.setCustomView(null); // invokes update() method internally.
+        }
     }
 
     //

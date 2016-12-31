@@ -65,7 +65,7 @@ public class CustomTabLayoutHelper extends TabLayoutHelper {
 
     @Override
     protected void onUpdateTab(TabLayout.Tab tab) {
-        // NOTE: should not call super method here!
+        super.onUpdateTab(tab);
 
         int position = tab.getPosition();
         View v = tab.getCustomView();
