@@ -18,6 +18,7 @@ package com.h6ah4i.android.tablayouthelper;
 
 import android.database.DataSetObserver;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
@@ -39,6 +40,7 @@ public class TabLayoutHelper {
 
     protected TabLayout.OnTabSelectedListener mInternalOnTabSelectedListener;
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
+    protected ViewPager.OnAdapterChangeListener mInternalOnAdapterChangeListener;
     protected DataSetObserver mInternalDataSetObserver;
     protected Runnable mAdjustTabModeRunnable;
     protected Runnable mSetTabsFromPagerAdapterRunnable;
@@ -87,6 +89,13 @@ public class TabLayoutHelper {
         };
 
         mInternalTabLayoutOnPageChangeListener = new FixedTabLayoutOnPageChangeListener(mTabLayout);
+
+        mInternalOnAdapterChangeListener = new ViewPager.OnAdapterChangeListener() {
+            @Override
+            public void onAdapterChanged(@NonNull ViewPager viewPager, @Nullable PagerAdapter oldAdapter, @Nullable PagerAdapter newAdapter) {
+                handleOnAdapterChanged(viewPager, oldAdapter, newAdapter);
+            }
+        };
 
         setupWithViewPager(mTabLayout, mViewPager);
     }
@@ -158,6 +167,10 @@ public class TabLayoutHelper {
         cancelPendingSetTabsFromPagerAdapter();
         cancelPendingUpdateScrollPosition();
 
+        if (mInternalOnAdapterChangeListener != null) {
+            mViewPager.removeOnAdapterChangeListener(mInternalOnAdapterChangeListener);
+            mInternalOnAdapterChangeListener = null;
+        }
         if (mInternalDataSetObserver != null) {
             mViewPager.getAdapter().unregisterDataSetObserver(mInternalDataSetObserver);
             mInternalDataSetObserver = null;
@@ -254,6 +267,21 @@ public class TabLayoutHelper {
         }
     }
 
+    protected void handleOnAdapterChanged(ViewPager viewPager, PagerAdapter oldAdapter, PagerAdapter newAdapter) {
+        if (mViewPager != viewPager) {
+            return;
+        }
+
+        if (oldAdapter != null) {
+            oldAdapter.unregisterDataSetObserver(mInternalDataSetObserver);
+        }
+        if (newAdapter != null) {
+            newAdapter.registerDataSetObserver(mInternalDataSetObserver);
+        }
+
+        setTabsFromPagerAdapter(mTabLayout, newAdapter, mViewPager.getCurrentItem());
+    }
+
     protected void cancelPendingAdjustTabMode() {
         if (mAdjustTabModeRunnable != null) {
             mTabLayout.removeCallbacks(mAdjustTabModeRunnable);
@@ -314,11 +342,12 @@ public class TabLayoutHelper {
         viewPager.getAdapter().registerDataSetObserver(mInternalDataSetObserver);
 
         viewPager.addOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
+        viewPager.addOnAdapterChangeListener(mInternalOnAdapterChangeListener);
 
         tabLayout.addOnTabSelectedListener(mInternalOnTabSelectedListener);
     }
 
-    protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, PagerAdapter adapter, int currentItem) {
+    protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, @Nullable PagerAdapter adapter, int currentItem) {
         try {
             mDuringSetTabsFromPagerAdapter = true;
 
@@ -329,17 +358,19 @@ public class TabLayoutHelper {
             tabLayout.removeAllTabs();
 
             // add tabs
-            int count = adapter.getCount();
-            for (int i = 0; i < count; i++) {
-                TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
-                tabLayout.addTab(tab, false);
-                updateTab(tab);
-            }
+            if (adapter != null) {
+                int count = adapter.getCount();
+                for (int i = 0; i < count; i++) {
+                    TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
+                    tabLayout.addTab(tab, false);
+                    updateTab(tab);
+                }
 
-            // select current tab
-            currentItem = Math.min(currentItem, count - 1);
-            if (currentItem >= 0) {
-                tabLayout.getTabAt(currentItem).select();
+                // select current tab
+                currentItem = Math.min(currentItem, count - 1);
+                if (currentItem >= 0) {
+                    tabLayout.getTabAt(currentItem).select();
+                }
             }
 
             // adjust tab mode & gravity

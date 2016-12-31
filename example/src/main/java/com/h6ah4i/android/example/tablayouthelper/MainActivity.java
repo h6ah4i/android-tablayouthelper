@@ -18,6 +18,8 @@ package com.h6ah4i.android.example.tablayouthelper;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -41,5 +43,23 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_reset:
+                ((TabLayoutDemoFragment)getSupportFragmentManager().findFragmentByTag(FRAGMENT_NORMAL_TAB_DEMO)).resetAdapter();
+                ((TabLayoutDemoFragment)getSupportFragmentManager().findFragmentByTag(FRAGMENT_CUSTOMIZED_TAB_DEMO)).resetAdapter();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 }

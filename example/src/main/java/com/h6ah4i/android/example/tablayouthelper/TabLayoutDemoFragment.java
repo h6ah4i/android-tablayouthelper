@@ -153,6 +153,11 @@ public class TabLayoutDemoFragment extends Fragment {
         super.onDestroyView();
     }
 
+    public void resetAdapter() {
+        mAdapter = new TabLayoutDemoPagerAdapter(getChildFragmentManager());
+        mViewPager.setAdapter(mAdapter);
+    }
+
     private void handleOnClickAddButton() {
         mAdapter.addPage();
     }
