@@ -44,6 +44,7 @@ public class TabLayoutHelper {
     protected Runnable mSetTabsFromPagerAdapterRunnable;
     protected Runnable mUpdateScrollPositionRunnable;
     protected boolean mAutoAdjustTabMode = false;
+    protected boolean mDuringSetTabsFromPagerAdapter;
 
     /**
      * Constructor.
@@ -162,7 +163,7 @@ public class TabLayoutHelper {
             mInternalDataSetObserver = null;
         }
         if (mInternalOnTabSelectedListener != null) {
-            mTabLayout.setOnTabSelectedListener(null);
+            mTabLayout.removeOnTabSelectedListener(mInternalOnTabSelectedListener);
             mInternalOnTabSelectedListener = null;
         }
         if (mInternalTabLayoutOnPageChangeListener != null) {
@@ -224,6 +225,9 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabSelected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         mViewPager.setCurrentItem(tab.getPosition());
         cancelPendingUpdateScrollPosition();
 
@@ -233,12 +237,18 @@ public class TabLayoutHelper {
     }
 
     protected void handleOnTabUnselected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabUnselected(tab);
         }
     }
 
     protected void handleOnTabReselected(TabLayout.Tab tab) {
+        if (mDuringSetTabsFromPagerAdapter) {
+            return;
+        }
         if (mUserOnTabSelectedListener != null) {
             mUserOnTabSelectedListener.onTabReselected(tab);
         }
@@ -305,45 +315,45 @@ public class TabLayoutHelper {
 
         viewPager.addOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
 
-        tabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
+        tabLayout.addOnTabSelectedListener(mInternalOnTabSelectedListener);
     }
 
     protected void setTabsFromPagerAdapter(@NonNull TabLayout tabLayout, PagerAdapter adapter, int currentItem) {
-        int prevSelectedTab = tabLayout.getSelectedTabPosition();
-        int prevScrollX = tabLayout.getScrollX();
+        try {
+            mDuringSetTabsFromPagerAdapter = true;
 
-        // remove all tabs
-        tabLayout.removeAllTabs();
+            int prevSelectedTab = tabLayout.getSelectedTabPosition();
+            int prevScrollX = tabLayout.getScrollX();
 
-        // add tabs
-        int count = adapter.getCount();
-        for (int i = 0; i < count; i++) {
-            TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
-            tabLayout.addTab(tab, false);
-            updateTab(tab);
-        }
+            // remove all tabs
+            tabLayout.removeAllTabs();
 
-        // select current tab
-        currentItem = Math.min(currentItem, count - 1);
-        if (currentItem >= 0) {
-            if (prevSelectedTab == currentItem) {
-                tabLayout.setOnTabSelectedListener(null);
+            // add tabs
+            int count = adapter.getCount();
+            for (int i = 0; i < count; i++) {
+                TabLayout.Tab tab = createNewTab(tabLayout, adapter, i);
+                tabLayout.addTab(tab, false);
+                updateTab(tab);
             }
-            tabLayout.getTabAt(currentItem).select();
-            if (prevSelectedTab == currentItem) {
-                tabLayout.setOnTabSelectedListener(mInternalOnTabSelectedListener);
-            }
-        }
 
-        // adjust tab mode & gravity
-        if (mAutoAdjustTabMode) {
-            adjustTabMode(prevScrollX);
-        } else {
-            // restore scroll position if needed
-            int curTabMode = tabLayout.getTabMode();
-            if (curTabMode == TabLayout.MODE_SCROLLABLE) {
-                tabLayout.scrollTo(prevScrollX, 0);
+            // select current tab
+            currentItem = Math.min(currentItem, count - 1);
+            if (currentItem >= 0) {
+                tabLayout.getTabAt(currentItem).select();
             }
+
+            // adjust tab mode & gravity
+            if (mAutoAdjustTabMode) {
+                adjustTabMode(prevScrollX);
+            } else {
+                // restore scroll position if needed
+                int curTabMode = tabLayout.getTabMode();
+                if (curTabMode == TabLayout.MODE_SCROLLABLE) {
+                    tabLayout.scrollTo(prevScrollX, 0);
+                }
+            }
+        } finally {
+            mDuringSetTabsFromPagerAdapter = false;
         }
     }
 
