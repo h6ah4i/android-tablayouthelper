@@ -36,8 +36,6 @@ public class TabLayoutHelper {
     protected TabLayout mTabLayout;
     protected ViewPager mViewPager;
 
-    protected TabLayout.OnTabSelectedListener mUserOnTabSelectedListener;
-
     protected TabLayout.OnTabSelectedListener mInternalOnTabSelectedListener;
     protected FixedTabLayoutOnPageChangeListener mInternalTabLayoutOnPageChangeListener;
     protected ViewPager.OnAdapterChangeListener mInternalOnAdapterChangeListener;
@@ -150,17 +148,6 @@ public class TabLayoutHelper {
     }
 
     /**
-     * Sets {@link TabLayout.OnTabSelectedListener}
-     *
-     * @param listener Listener
-     * @deprecated Use {@link TabLayout#addOnTabSelectedListener(TabLayout.OnTabSelectedListener)} instead.
-     */
-    @Deprecated
-    public void setOnTabSelectedListener(TabLayout.OnTabSelectedListener listener) {
-        mUserOnTabSelectedListener = listener;
-    }
-
-    /**
      * Unregister internal listener objects, release object references, etc.
      * This method should be called in order to avoid memory leaks.
      */
@@ -185,7 +172,6 @@ public class TabLayoutHelper {
             mViewPager.removeOnPageChangeListener(mInternalTabLayoutOnPageChangeListener);
             mInternalTabLayoutOnPageChangeListener = null;
         }
-        mUserOnTabSelectedListener = null;
         mViewPager = null;
         mTabLayout = null;
     }
@@ -247,27 +233,17 @@ public class TabLayoutHelper {
         }
         mViewPager.setCurrentItem(tab.getPosition());
         cancelPendingUpdateScrollPosition();
-
-        if (mUserOnTabSelectedListener != null) {
-            mUserOnTabSelectedListener.onTabSelected(tab);
-        }
     }
 
     protected void handleOnTabUnselected(TabLayout.Tab tab) {
         if (mDuringSetTabsFromPagerAdapter) {
             return;
         }
-        if (mUserOnTabSelectedListener != null) {
-            mUserOnTabSelectedListener.onTabUnselected(tab);
-        }
     }
 
     protected void handleOnTabReselected(TabLayout.Tab tab) {
         if (mDuringSetTabsFromPagerAdapter) {
             return;
-        }
-        if (mUserOnTabSelectedListener != null) {
-            mUserOnTabSelectedListener.onTabReselected(tab);
         }
     }
 
