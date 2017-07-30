@@ -1,3 +1,7 @@
+## 0.9.0
+- Updated support libraries version to 26.0.0
+- Drop deprecated setOnTabSelectedListener() method
+
 ## 0.8.0
 - Updated support libraries version to 25.1.0
 - Mark setOnTabSelectedListener() method as deprecated
