@@ -17,7 +17,7 @@
 package com.h6ah4i.android.example.tablayouthelper;
 
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 

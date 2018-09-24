@@ -15,25 +15,26 @@ A small library which helps to use `TabLayout` with `ViewPager` more easily.
 Target platforms
 ---
 
-- API level 9 or later  
+- API level 14 or later
 
 Latest version
 ---
 
-- Version 0.9.0  (July 31, 2017)
+- Version 1.0.0  (September 24, 2018)
 
 Getting started
 ---
 
 This library is published on jCenter. Just add these lines to `build.gradle`.
 
-```groovy
+```gradle
 dependencies {
-    compile 'com.h6ah4i.android.tablayouthelper:tablayouthelper:0.9.0'
+    implementation 'com.h6ah4i.android.tablayouthelper:tablayouthelper:1.0.0'
 }
 ```
 
-**NOTE** Since v0.9.0, this library uses support libraries v26+. If you still need to support API level v9, please use v0.8.0 instead.
+**NOTE**
+- Since v1.0.0, this library has been migrated to AndroidX. If you still need to use support libraries, use v0.9.0 instead.
 
 Usage
 ---
