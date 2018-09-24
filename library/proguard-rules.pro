@@ -16,4 +16,4 @@
 #   public *;
 #}
 
--keepclassmembernames class android.support.design.widget.TabLayout { *; }
+-keepclassmembernames class com.google.android.material.tabs.TabLayout { *; }
