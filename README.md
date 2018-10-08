@@ -20,7 +20,7 @@ Target platforms
 Latest version
 ---
 
-- Version 0.9.0  (July 31, 2017)
+- Version 0.9.1  (October 8, 2018)
 
 Getting started
 ---
@@ -29,7 +29,7 @@ This library is published on jCenter. Just add these lines to `build.gradle`.
 
 ```groovy
 dependencies {
-    compile 'com.h6ah4i.android.tablayouthelper:tablayouthelper:0.9.0'
+    compile 'com.h6ah4i.android.tablayouthelper:tablayouthelper:0.9.1'
 }
 ```
 
