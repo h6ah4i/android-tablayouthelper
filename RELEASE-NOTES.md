@@ -1,6 +1,9 @@
 ## 1.0.0
 - Migrated to AndroidX
 
+## 0.9.1
+- Updated support libraries version to 28.0.0
+
 ## 0.9.0
 - Updated support libraries version to 26.0.0
 - Drop deprecated setOnTabSelectedListener() method
