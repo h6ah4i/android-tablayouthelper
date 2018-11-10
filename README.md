@@ -34,7 +34,7 @@ dependencies {
 ```
 
 **NOTE**
-- Since v1.0.0, this library has been migrated to AndroidX. If you still need to use support libraries, use v0.9.0 instead.
+- Since v1.0.0, this library has been migrated to AndroidX. If you still need to use support libraries, use v0.9.1 instead.
 
 Usage
 ---
