@@ -49,7 +49,7 @@ task androidSourcesJar(type: Jar) {
 
 afterEvaluate {
     androidJavadocs.classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-    androidJavadocs.classpath += project.android.libraryVariants.toList().first().javaCompile.classpath
+    androidJavadocs.classpath += project.android.libraryVariants.toList().first().javaCompileProvider.get().classpath
 }
 
 signing {
