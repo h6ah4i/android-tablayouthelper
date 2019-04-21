@@ -510,7 +510,7 @@ public class TabLayoutHelper {
             try {
                 mMethodSelectTab.invoke(tabLayout, tab, updateIndicator);
             } catch (IllegalAccessException e) {
-                new IllegalStateException(e);
+                throw new IllegalStateException(e);
             } catch (InvocationTargetException e) {
                 throw handleInvocationTargetException(e);
             }
