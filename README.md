@@ -3,6 +3,7 @@ TabLayoutHelper
 
 A small library which helps to use `TabLayout` with `ViewPager` more easily.
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.h6ah4i.android.tablayouthelper/tablayouthelper/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.h6ah4i.android.tablayouthelper/tablayouthelper)
 [![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-TabLayoutHelper-green.svg?style=flat)](https://android-arsenal.com/details/1/2273)
 
 ---
@@ -25,7 +26,7 @@ Latest version
 Getting started
 ---
 
-This library is published on jCenter. Just add these lines to `build.gradle`.
+This library is published on Maven Central. Just add these lines to `build.gradle`.
 
 ```gradle
 dependencies {
